@@ -75,3 +75,4 @@ typings/
 
 # dotenv environment variables file
 .env
+/packages/purgecss/__tests__ copy

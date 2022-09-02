@@ -5,16 +5,9 @@
  *
  * @packageDocumentation
  */
-
-import * as fs from "fs";
-import * as glob from "glob";
-import * as path from "path";
 import * as postcss from "postcss";
 import selectorParser from "postcss-selector-parser";
-import { promisify } from "util";
 import {
-  CONFIG_FILENAME,
-  ERROR_CONFIG_FILE_LOADING,
   IGNORE_ANNOTATION_CURRENT,
   IGNORE_ANNOTATION_END,
   IGNORE_ANNOTATION_NEXT,
@@ -43,11 +36,6 @@ import VariablesStructure from "./VariablesStructure";
 
 export * from "./types";
 export { defaultOptions, ExtractorResultSets, PurgeCSS };
-
-const asyncFs = {
-  access: promisify(fs.access),
-  readFile: promisify(fs.readFile),
-};
 
 /**
  * Format the user defined safelist into a standardized safelist object
@@ -84,18 +72,8 @@ export function standardizeSafelist(
  * @public
  */
 export async function setOptions(
-  configFile: string = CONFIG_FILENAME
+  options: Options
 ): Promise<Options> {
-  let options: Options;
-  try {
-    const t = path.resolve(process.cwd(), configFile);
-    options = await import(t);
-  } catch (err: unknown) {
-    if (err instanceof Error) {
-      throw new Error(`${ERROR_CONFIG_FILE_LOADING} ${err.message}`);
-    }
-    throw new Error();
-  }
   return {
     ...defaultOptions,
     ...options,
@@ -397,39 +375,6 @@ class PurgeCSS {
   }
 
   /**
-   * Extract the selectors present in the files using a PurgeCSS extractor
-   *
-   * @param files - Array of files path or glob pattern
-   * @param extractors - Array of extractors
-   */
-  public async extractSelectorsFromFiles(
-    files: string[],
-    extractors: Extractors[]
-  ): Promise<ExtractorResultSets> {
-    const selectors = new ExtractorResultSets([]);
-    for (const globFile of files) {
-      let filesNames: string[] = [];
-
-      try {
-        await asyncFs.access(globFile, fs.constants.F_OK);
-        filesNames.push(globFile);
-      } catch (err) {
-        filesNames = glob.sync(globFile, {
-          nodir: true,
-          ignore: this.options.skippedContentGlobs,
-        });
-      }
-      for (const file of filesNames) {
-        const content = await asyncFs.readFile(file, "utf-8");
-        const extractor = this.getFileExtractor(file, extractors);
-        const extractedSelectors = await extractSelectors(content, extractor);
-        selectors.merge(extractedSelectors);
-      }
-    }
-    return selectors;
-  }
-
-  /**
    * Extract the selectors present in the passed string using a PurgeCSS extractor
    *
    * @param content - Array of content
@@ -580,23 +525,16 @@ class PurgeCSS {
     const processedOptions: Array<string | RawCSS> = [];
     for (const option of cssOptions) {
       if (typeof option === "string") {
-        processedOptions.push(
-          ...glob.sync(option, {
-            nodir: true,
-            ignore: this.options.skippedContentGlobs,
-          })
-        );
+        // ignore
       } else {
         processedOptions.push(option);
       }
     }
 
     for (const option of processedOptions) {
-      const cssContent =
+      const cssContent = 
         typeof option === "string"
-          ? this.options.stdin
-            ? option
-            : await asyncFs.readFile(option, "utf-8")
+          ? '' 
           : option.raw;
       const isFromFile = typeof option === "string" && !this.options.stdin;
       const root = postcss.parse(cssContent, {
@@ -730,33 +668,23 @@ class PurgeCSS {
    * ```
    */
   public async purge(
-    userOptions: UserDefinedOptions | string | undefined
+    userOptions: UserDefinedOptions
   ): Promise<ResultPurge[]> {
-    this.options =
-      typeof userOptions !== "object"
-        ? await setOptions(userOptions)
-        : {
-            ...defaultOptions,
-            ...userOptions,
-            safelist: standardizeSafelist(userOptions.safelist),
-          };
+    this.options = {
+      ...defaultOptions,
+      ...userOptions,
+      safelist: standardizeSafelist(userOptions.safelist),
+    };
     const { content, css, extractors, safelist } = this.options;
 
     if (this.options.variables) {
       this.variablesStructure.safelist = safelist.variables || [];
     }
 
-    const fileFormatContents = content.filter(
-      (o) => typeof o === "string"
-    ) as string[];
     const rawFormatContents = content.filter(
       (o) => typeof o === "object"
     ) as RawContent[];
 
-    const cssFileSelectors = await this.extractSelectorsFromFiles(
-      fileFormatContents,
-      extractors
-    );
     const cssRawSelectors = await this.extractSelectorsFromString(
       rawFormatContents,
       extractors
@@ -764,7 +692,7 @@ class PurgeCSS {
 
     return this.getPurgedCSS(
       css,
-      mergeExtractorSelectors(cssFileSelectors, cssRawSelectors)
+      mergeExtractorSelectors(cssRawSelectors)
     );
   }
 

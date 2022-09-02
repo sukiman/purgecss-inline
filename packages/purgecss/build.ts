@@ -12,11 +12,7 @@ import { RollupOptions } from "rollup";
 
 const external = [
   "postcss",
-  "postcss-selector-parser",
-  "glob",
-  "path",
-  "fs",
-  "util",
+  "postcss-selector-parser"
 ];
 
 const cliBundle: RollupOptions = {
@@ -25,7 +21,7 @@ const cliBundle: RollupOptions = {
   output: {
     banner: "#!/usr/bin/env node",
     file: "./bin/purgecss.js",
-    footer: "main();",
+    footer: "",
     format: "cjs",
   },
   plugins: [
