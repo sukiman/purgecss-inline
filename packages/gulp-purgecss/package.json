@@ -36,7 +36,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "glob": "^8.0.3",
+    "glob": "^9.0.0",
     "plugin-error": "^2.0.0",
     "purgecss": "^5.0.0",
     "through2": "^4.0.1"
