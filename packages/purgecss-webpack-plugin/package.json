@@ -37,7 +37,7 @@
     "test": "jest"
   },
   "dependencies": {
-    "purgecss": "^5.0.0",
+    "purgecss": "^6.0.0",
     "webpack": ">=5.0.0"
   },
   "bugs": {
